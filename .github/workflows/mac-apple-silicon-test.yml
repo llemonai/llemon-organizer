@@ -1,0 +1,147 @@
+# Tests the published Mac app on an Apple Silicon (M-series) Mac.
+# It downloads the release's macOS zip (no source code is involved), checks its checksum and signature,
+# runs the app's built-in self-test (open a PDF, Check for updates) and a real
+# in-app update, and keeps the reports and screenshots as artifacts.
+name: Mac Apple Silicon test
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to test (empty = latest)
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-latest   # an Apple Silicon (M-series) Mac; the first step stops if it is not
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Machine
+        run: |
+          sw_vers
+          uname -m
+          sysctl -n machdep.cpu.brand_string
+          test "$(uname -m)" = arm64
+
+      - name: Download the release and check its checksum
+        run: |
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          if [ -z "$TAG" ]; then TAG=$(gh release view --repo "$REPO" --json tagName -q .tagName); fi
+          VERSION="${TAG#v}"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          mkdir -p work out
+          cd work
+          ZIP="llemonAI-PDF-Organizer-$VERSION-macos.zip"
+          gh release download "$TAG" --repo "$REPO" --pattern "$ZIP" --pattern SHA256SUMS.txt
+          WANT=$(grep "  $ZIP\$" SHA256SUMS.txt | cut -d' ' -f1 | tr A-F a-f)
+          GOT=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)
+          echo "want $WANT"; echo "got  $GOT"
+          test -n "$WANT" && test "$WANT" = "$GOT"
+          ditto -x -k "$ZIP" .
+          ls -la
+
+      - name: Universal binary and signature
+        run: |
+          APP="work/llemonAI PDF Organizer.app"
+          lipo -archs "$APP/Contents/MacOS/llemonAI PDF Organizer" | tee out/archs.txt
+          grep -q arm64 out/archs.txt
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign -dv "$APP" 2>&1 | tee out/codesign.txt
+          cat "$APP/Contents/Resources/web/build-info.js"
+
+      - name: Make a test PDF
+        run: |
+          python3 - <<'PY'
+          # A plain 6-page PDF with a heading and a line of text on each page.
+          pages = 6
+          objs = ["<< /Type /Catalog /Pages 2 0 R >>", None, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+          kids = []
+          for i in range(1, pages + 1):
+              text = f"BT /F1 28 Tf 72 740 Td (Chapter {i}) Tj /F1 14 Tf 0 -40 Td (Page {i} has the word zebra{i}.) Tj ET".encode()
+              objs.append(f"<< /Length {len(text)} >>\nstream\n".encode() + text + b"\nendstream")
+              content = len(objs)
+              objs.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents {content} 0 R >>")
+              kids.append(f"{len(objs)} 0 R")
+          objs[1] = f"<< /Type /Pages /Kids [{' '.join(kids)}] /Count {pages} >>"
+          out = bytearray(b"%PDF-1.4\n")
+          offsets = []
+          for n, o in enumerate(objs, 1):
+              offsets.append(len(out))
+              body = o if isinstance(o, bytes) else o.encode()
+              out += f"{n} 0 obj\n".encode() + body + b"\nendobj\n"
+          xref = len(out)
+          out += f"xref\n0 {len(objs) + 1}\n0000000000 65535 f \n".encode()
+          for off in offsets:
+              out += f"{off:010d} 00000 n \n".encode()
+          out += f"trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+          open("work/test.pdf", "wb").write(out)
+          PY
+          ls -la work/test.pdf
+
+      - name: Self-test (open a PDF)
+        run: |
+          BIN="work/llemonAI PDF Organizer.app/Contents/MacOS/llemonAI PDF Organizer"
+          LLEMON_SELFTEST_FILE="$PWD/work/test.pdf" LLEMON_SELFTEST_OUT="$PWD/out/selftest.json"           LLEMON_SELFTEST_SHOT="$PWD/out/main.png" arch -arm64 "$BIN" &
+          PID=$!
+          for i in $(seq 120); do sleep 1; [ -s out/selftest.json ] && break; done
+          sleep 3; kill $PID 2>/dev/null || true
+          cat out/selftest.json; echo
+          python3 - <<'PY'
+          import json, sys
+          m = json.load(open("out/selftest.json"))
+          checks = {
+              "runs as Apple Silicon": "Apple Silicon" in m.get("platform", ""),
+              "PDF opened with 6 pages": m.get("pages") == 6 and m.get("statPages") == "6",
+              "thumbnails drawn": m.get("thumbnails") == 6,
+              "file size shown": "KB" in m.get("statOrig", "") or "B" in m.get("statOrig", ""),
+              "Mac key hints": "⌘" in m.get("saveTitle", ""),
+              "version history shown": "this version" in m.get("versionList", ""),
+          }
+          for k, v in checks.items():
+              print(("PASS " if v else "FAIL ") + k)
+          sys.exit(0 if all(checks.values()) else 1)
+          PY
+
+      - name: Check for updates (up to date)
+        run: |
+          BIN="work/llemonAI PDF Organizer.app/Contents/MacOS/llemonAI PDF Organizer"
+          LLEMON_SELFTEST_UPDATE_OUT="$PWD/out/update-current.txt" arch -arm64 "$BIN" &
+          PID=$!
+          for i in $(seq 60); do sleep 1; [ -s out/update-current.txt.check ] && break; done
+          sleep 1; kill $PID 2>/dev/null || true
+          cat out/update-current.txt.check; echo
+          grep -q "latest version ($VERSION)" out/update-current.txt.check
+
+      - name: Real in-app update (from a copy stamped 1.9.9)
+        run: |
+          mkdir -p old
+          ditto "work/llemonAI PDF Organizer.app" "old/llemonAI PDF Organizer.app"
+          OLD="$PWD/old/llemonAI PDF Organizer.app"
+          echo "export const BUILD = { version: '1.9.9', built: 'test' };" > "$OLD/Contents/Resources/web/build-info.js"
+          codesign --force --deep --sign - "$OLD"
+          LLEMON_SELFTEST_UPDATE_OUT="$PWD/out/update-install.txt" arch -arm64 "$OLD/Contents/MacOS/llemonAI PDF Organizer" &
+          for i in $(seq 120); do sleep 1; [ -s out/update-install.txt ] && break; done
+          sleep 5
+          cat out/update-install.txt.check; echo
+          cat out/update-install.txt; echo
+          grep -q "install: ok" out/update-install.txt
+          grep -q "version: '$VERSION'" "$OLD/Contents/Resources/web/build-info.js"
+          codesign --verify --deep --strict "$OLD"
+          echo "Relaunched copy:"; pgrep -fl "old/llemonAI PDF Organizer.app" || { echo "the updated app did not relaunch"; exit 1; }
+          pkill -f "old/llemonAI PDF Organizer.app" || true
+
+      - name: Keep reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-apple-silicon-${{ env.VERSION }}
+          path: out/
