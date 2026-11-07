@@ -42,10 +42,10 @@ jobs:
           cd work
           ZIP="llemonAI-PDF-Organizer-$VERSION-macos.zip"
           gh release download "$TAG" --repo "$REPO" --pattern "$ZIP" --pattern SHA256SUMS.txt
-          WANT=$(grep "  $ZIP\$" SHA256SUMS.txt | cut -d' ' -f1 | tr A-F a-f)
+          WANT=$(tr -d '\r' < SHA256SUMS.txt | grep "  $ZIP\$" | cut -d' ' -f1 | tr A-F a-f)
           GOT=$(shasum -a 256 "$ZIP" | cut -d' ' -f1)
           echo "want $WANT"; echo "got  $GOT"
-          test -n "$WANT" && test "$WANT" = "$GOT"
+          if [ -z "$WANT" ] || [ "$WANT" != "$GOT" ]; then echo "checksum mismatch or missing"; exit 1; fi
           ditto -x -k "$ZIP" .
           ls -la
 
@@ -121,12 +121,12 @@ jobs:
           cat out/update-current.txt.check; echo
           grep -q "latest version ($VERSION)" out/update-current.txt.check
 
-      - name: Real in-app update (from a copy stamped 1.9.9)
+      - name: Real in-app update (from a copy stamped 0.0.1)
         run: |
           mkdir -p old
           ditto "work/llemonAI PDF Organizer.app" "old/llemonAI PDF Organizer.app"
           OLD="$PWD/old/llemonAI PDF Organizer.app"
-          echo "export const BUILD = { version: '1.9.9', built: 'test' };" > "$OLD/Contents/Resources/web/build-info.js"
+          echo "export const BUILD = { version: '0.0.1', built: 'test' };" > "$OLD/Contents/Resources/web/build-info.js"
           codesign --force --deep --sign - "$OLD"
           LLEMON_SELFTEST_UPDATE_OUT="$PWD/out/update-install.txt" arch -arm64 "$OLD/Contents/MacOS/llemonAI PDF Organizer" &
           for i in $(seq 120); do sleep 1; [ -s out/update-install.txt ] && break; done
