@@ -33,14 +33,14 @@ than the page already is (ordinary text pages), and by default leaves such pages
 | Platform | Requirement |
 |---|---|
 | Windows | Windows 10 or 11, 64-bit or 32-bit. It's a single portable `.exe` with no installer and no admin rights, and it uses the Microsoft Edge WebView2 runtime built into Windows. |
-| macOS | macOS 12 or later, Apple Silicon or Intel. Open the `.dmg` and drag the app to Applications. It isn't notarized by Apple, so the first time, right-click it and choose **Open**. |
+| macOS | macOS 12 or later, Apple Silicon or Intel. Open the `.dmg` and drag the app to Applications. It isn't notarized by Apple, so the first time allow it in **System Settings → Privacy & Security → Open Anyway** ([steps](https://llemonai.in/organizer.html#mac-open)). |
 | Android | Android 8.0 (API 26) or later, as a sideloaded `.apk`. |
 
 ## Verifying downloads
 
 The builds are signed with llemonai's own self-signed certificate (Windows), release key
 (Android) and an ad-hoc signature (macOS). Windows SmartScreen may show "Unknown Publisher",
-Android may warn about an unknown source, and macOS asks you to confirm the first launch; all are expected.
+Android may warn about an unknown source, and macOS blocks the first launch until you click Open Anyway in Privacy & Security; all are expected.
 
 To confirm a file is genuine, compare its SHA256 checksum. On Windows, run `certutil -hashfile <file> SHA256`; on a Mac, `shasum -a 256 <file>`.
 
