@@ -20,7 +20,8 @@ than the page already is (ordinary text pages), and by default leaves such pages
 
 - **File size on the main screen:** original size, size after your changes, and every page's share.
 - **Pages:** drag to reorder, rotate, add blank pages, delete; select several pages at once; undo and redo.
-- **Combine files:** append or insert PDF, Word (.docx and Word 97–2003 .doc) and text (.txt) files.
+- **Combine files:** append or insert PDF, Word (.docx and Word 97–2003 .doc) and text (.txt) files, and pictures: JPEG, PNG, GIF, WebP, BMP, AVIF, TIFF and HEIC/HEIF photos from an iPhone, iPad or Mac, one page each.
+- **Large files:** scanned files of a gigabyte or more open and save, with a progress bar.
   Text in Indian and other scripts shows correctly.
 - **Page numbers:** add them to all pages (position, format such as "Page 1 of 10", start number,
   skip the cover), or find and delete the numbers already printed in a document.
@@ -44,13 +45,13 @@ Android may warn about an unknown source, and macOS blocks the first launch unti
 
 To confirm a file is genuine, compare its SHA256 checksum. On Windows, run `certutil -hashfile <file> SHA256`; on a Mac, `shasum -a 256 <file>`.
 
-| File (v1.5.1) | SHA256 |
+| File (v1.6.0) | SHA256 |
 |---|---|
-| `llemonAI-PDF-Organizer-1.5.1-android.apk` | `A3DD1E01803BEB14764FC1E68E84BF7F4D1F951366D3DA88A01F6C4842CAB153` |
-| `llemonAI-PDF-Organizer-1.5.1-macos.dmg` | `C01A0BAB696C092BE356BDC55F43D9F46D8D8F6732808BB7EDDF074472742233` |
-| `llemonAI-PDF-Organizer-1.5.1-macos.zip` | `78B0209511CE48264E75444BA50746FAD326913AAB7595F15E9A9B747B5781DB` |
-| `llemonAI-PDF-Organizer-1.5.1-win-x64.exe` | `5D32B67F187908849D9FA02B1D7B334AD997354B2D33A50EC13FD46B6E4FD111` |
-| `llemonAI-PDF-Organizer-1.5.1-win-x86.exe` | `2E2C320EFE948C061A424A3580EDEC085F2E0305BE9562AB6C692A5394F70292` |
+| `llemonAI-PDF-Organizer-1.6.0-android.apk` | `9AE824CB8E06110225B5E0D396E56F8C34496DD2D1FED03BE5BE3E704189978D` |
+| `llemonAI-PDF-Organizer-1.6.0-macos.dmg` | `902FFE2475B2E054673BFA32895EC62324316FC1F020AA50C56DB546629F3254` |
+| `llemonAI-PDF-Organizer-1.6.0-macos.zip` | `740DEB867EBBC777B74D7861D849AD85E71E8120E77134D7663A8FF504F872DE` |
+| `llemonAI-PDF-Organizer-1.6.0-win-x64.exe` | `E8BF8B6FD051FAAF756874B048A2EAEF2B4901A6CF4FE1252B7FA903C1158A7C` |
+| `llemonAI-PDF-Organizer-1.6.0-win-x86.exe` | `CE79BF6814C55483FAA5F0E5E2A99A93E24FCCA67F842514DA842074F33040C9` |
 
 ## Repo contents
 
